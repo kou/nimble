@@ -16,8 +16,8 @@ name: Linux Build
 
 on:
   push:
-    branches:
-      - "main"
+    # branches:
+    #   - "main"
 
   pull_request:
 
@@ -31,7 +31,7 @@ concurrency:
 jobs:
   ubuntu-release:
     runs-on: ubuntu-22.04
-    if: ${{ github.repository == 'facebookincubator/nimble' }}
+    # if: ${{ github.repository == 'facebookincubator/nimble' }}
     name: "Ubuntu Build"
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
@@ -41,7 +41,7 @@ jobs:
         working-directory: nimble
     steps:
       - name: "Restore Build Cache"
-        uses: assignUser/stash/restore@v1
+        uses: apache/infrastructure-actions/stash/restore@58c7973873a03d46c24a113f5cbf6f5a1c1ab5ad
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-ubuntu-release-default
@@ -71,6 +71,11 @@ jobs:
             flex \
             libfl-dev
 
+      - name: "Reset Cache Stats"
+        run: |
+          # Print and zero cache stats.
+          ccache -szv
+
       - name: "Build"
         env:
           CC: "clang-15"
@@ -81,11 +86,12 @@ jobs:
 
       - name: "Cache Stats"
         run: |
-          # Print and zero cache stats.
-          ccache -szv
+          # Print cache stats.
+          ccache -sv
+          find "${CCACHE_DIR}"
 
       - name: "Stash Build Cache"
-        uses: assignUser/stash/save@v1
+        uses: apache/infrastructure-actions/stash/save@58c7973873a03d46c24a113f5cbf6f5a1c1ab5ad
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-ubuntu-release-default
