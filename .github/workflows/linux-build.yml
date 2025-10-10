@@ -30,7 +30,10 @@ jobs:
     runs-on: ubuntu-22.04
     name: "Ubuntu Build"
     env:
+      CC: "clang-15"
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
+      CMAKE_INSTALL_PREFIX: "${{ github.workspace }}/local"
+      CXX: "clang++-15"
     defaults:
       run:
         shell: bash
@@ -42,8 +45,14 @@ jobs:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-ubuntu-release-default
 
-      - name: "Checkout"
-        uses: actions/checkout@v4
+      - name: "Checkout Velox"
+        uses: actions/checkout@v5
+        with:
+          repository: facebookincubator/velox
+          path: velox
+
+      - name: "Checkout Nimble"
+        uses: actions/checkout@v5
         with:
           path: nimble
 
@@ -67,12 +76,30 @@ jobs:
             flex \
             libfl-dev
 
-      - name: "Build"
-        env:
-          CC: "clang-15"
-          CXX: "clang++-15"
+      - name: "Compiler version"
         run: |
           $CXX --version
+
+      - name: "Build Velox"
+        working-directory: velox
+        run: |
+          cmake \
+            -S . \
+            -B ../velox.build \
+            -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX} \
+            -DVELOX_BUILD_MINIMAL_WITH_DWIO=ON \
+            -DVELOX_BUILD_SHARED=ON \
+            -GNinja
+          cmake --build ../velox.build
+          cmake --install ../velox.build
+
+      - name: "Build Nimble"
+        env:
+          EXTRA_CMAKE_FLAGS: >-
+            -DCMAKE_PREFIX_PATH=${CMAKE_INSTALL_PREFIX}
+        run: |
+          . ../velox/scripts/setup-helper-functions.sh
+          export CXXFLAGS="$(get_cxx_flags avx)"
           make
 
       - name: "Cache Stats"
